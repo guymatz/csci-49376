@@ -176,11 +176,13 @@ compound_nodes = nodes.filter(nodes.id.startswith("Compound"))
 rdd_1 = gene_compounds.rdd.map(lambda x: (x[0], 1))
 # rdd_1.take(5)
 
-rdd_2 = rdd_1.reduceByKey(lambda x, y: x + y)
-# rdd_2.take(5)
+q3_df = rdd_1.reduceByKey(lambda x, y: x + y).toDF(
+    ["compound", "gene_count"]
+)
 
-rdd_4 = rdd_2.join(compound_nodes.rdd)
-# rdd_4.take(5)
+joined_q3_df = q3_df.join(compound_nodes, q3_df.compound == compound_nodes.id).select(
+    compound_nodes.name, q3_df.gene_count
+)
 
-rdd_5 = rdd_4.sortBy(lambda x: x[1][0], ascending=False)
-rdd_5.toDF().show(5)
+sorted_joined_q3_df = joined_q3_df.sort(joined_q3_df.gene_count, ascending=False)
+sorted_joined_q3_df.show(5)
