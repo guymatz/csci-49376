@@ -118,9 +118,11 @@ rdd_1 = disease_compounds.rdd.map(lambda x: (x[0],    1))
 # rdd_1.take(5)
 
 rdd_2 = rdd_1.reduceByKey(lambda x, y: x + y)
-# rdd_2.take(5)
+rdd_2.take(5)
 
-df_1 = rdd_2.toDF(["compound", "drug_count"]).groupBy('drug_count').count()
+df_1 = rdd_2.toDF(["compound", "drug_count"]).\
+    groupBy('drug_count').count().\
+    withColumnRenamed("count", "disease_count")
 df_1.sort("count", ascending=False).show(3)
 
 print("""
