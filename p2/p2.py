@@ -10,64 +10,73 @@ Original file is located at
 
 import os
 import sys
+
 # Import SparkSession
 from pyspark.sql import SparkSession
 
-edge_file = "edges.tsv.gz"
-node_file = "nodes.tsv.gz"
+EDGE_FILE = "edges.tsv.gz"
+NODE_FILE = "nodes.tsv.gz"
 
-if 'COLAB_GPU' in os.environ:
+if "COLAB_GPU" in os.environ:
     print("I'm running on Colab")
     # !pip install pyspark
     from google.colab import drive
-    drive.mount('/content/drive')
+
+    drive.mount("/content/drive")
     # drive.flush_and_unmount()
-    edge_file = f"/content/drive/MyDrive/School/CSCI/Big-data/{edge_file}"
-    # edge_file = "/content/drive/MyDrive/School/CSCI/Big-data/edges-test.tsv"
-    node_file = f"/content/drive/MyDrive/School/CSCI/Big-data/{node_file}"
+    EDGE_FILE = f"/content/drive/MyDrive/School/CSCI/Big-data/{EDGE_FILE}"
+    # EDGE_FILE = "/content/drive/MyDrive/School/CSCI/Big-data/edges-test.tsv"
+    NODE_FILE = f"/content/drive/MyDrive/School/CSCI/Big-data/{NODE_FILE}"
 else:
     print("I'm running locally")
     import urllib.request
-    nodes_gz_url = "https://drive.google.com/uc?id=1-VBD-Un8SRj6mmn38EQoacqRuBNizoi0&export=download"
-    edges_gz_url = "https://drive.google.com/uc?id=1-7tacmfwahcRtN6mS9FKB8Ob_vbxgUxt&export=download"
+
+    NODES_GZ_URL = "https://drive.google.com/uc?id=1-VBD-Un8SRj6mmn38EQoacqRuBNizoi0&export=download"
+    EDGES_GZ_URL = "https://drive.google.com/uc?id=1-7tacmfwahcRtN6mS9FKB8Ob_vbxgUxt&export=download"
     if not os.path.exists("nodes.tsv.gz"):
         print("Downloading nodes")
-        urllib.request.urlretrieve(nodes_gz_url, "nodes.tsv.gz")
+        urllib.request.urlretrieve(NODES_GZ_URL, "nodes.tsv.gz")
     if not os.path.exists("edges.tsv.gz"):
         print("Downloading edges")
-        urllib.request.urlretrieve(edges_gz_url, "edges.tsv.gz")
+        urllib.request.urlretrieve(EDGES_GZ_URL, "edges.tsv.gz")
 
 # Create a Spark Session
 ss = SparkSession.builder.master("local[*]").getOrCreate()
-edges = ss.read.csv(edge_file, header=True, sep="\t")
-nodes = ss.read.csv(node_file, header=True, sep="\t")
+edges = ss.read.csv(EDGE_FILE, header=True, sep="\t")
+nodes = ss.read.csv(NODE_FILE, header=True, sep="\t")
 
 # print(f"Edges: {edges.count()}")
 # print(f"Nodes: {nodes.count()}")
 
 # sys.exit(0)
 
-print("""
-Q1. 
+print(
+    """
+Q1.
 
-For each drug, compute the number of genes
-and the number of diseases associated with the
-drug. Output results with top 5 number of genes in a descending order
-""")
-
+For each drug, compute the number of genes and the number of diseases
+associated with the drug. Output results with top 5 number of genes
+in descending order
+"""
+)
+"""
+```
+❯ gzip -dc edges.tsv.gz| grep ^Compound:: | grep Gene:: | \
+    awk '{print $1}' | sort | uniq -c | sort -nr | head -3 | \
+    while read gn c
+    do
+    dn=$(gzip -dc edges.tsv.gz | grep ^${c} | grep Disease:: | wc -l)
+    echo "$c $gn $dn"
+done
+```
+"""
 # Filter out the Compounds associated with Genes & Diseases
 disease_compounds = edges.filter(
-        edges.source.startswith('Compound') &
-        (
-                edges.target.startswith('Disease')
-        )
+    edges.source.startswith("Compound") & (edges.target.startswith("Disease"))
 )
 
 gene_compounds = edges.filter(
-        edges.source.startswith('Compound') &
-        (
-                edges.target.startswith('Gene') 
-        )
+    edges.source.startswith("Compound") & (edges.target.startswith("Gene"))
 )
 
 # gene_compounds.sample(.01).show(10)
@@ -75,23 +84,27 @@ gene_compounds = edges.filter(
 # disease_compounds.show(10)
 
 # Convert    |source|target::xyz| -> |source| 1 |
-disease_rdd_1 = disease_compounds.rdd.map(lambda x: (x[0],    1) )
+disease_rdd_1 = disease_compounds.rdd.map(lambda x: (x[0], 1))
 # print("Diseases: " , disease_rdd_1.take(3))
-gene_rdd_1 = gene_compounds.rdd.map(lambda x: (x[0],    1) )
+gene_rdd_1 = gene_compounds.rdd.map(lambda x: (x[0], 1))
 # print("Genes: ", gene_rdd_1.take(3))
 
-disease_rdd_2 = disease_rdd_1.reduceByKey( lambda x, y: x + y)
-# print("Diseases: " , disease_rdd_2.take(3))
-gene_rdd_2 = gene_rdd_1.reduceByKey( lambda x, y: x + y)
-# print("Genes: " , gene_rdd_2.take(3))
+disease_rdd_2 = disease_rdd_1.reduceByKey(lambda x, y: x + y)
+# print("Diseases: ", disease_rdd_2.take(3))
+gene_rdd_2 = gene_rdd_1.reduceByKey(lambda x, y: x + y)
+# print("Genes: ", gene_rdd_2.take(3))
 
-joined_rdd = gene_rdd_2.join(disease_rdd_2)
-# joined_rdd.take(5)
+disease_df = disease_rdd_2.toDF(["compound", "disease_count"])
+gene_df = gene_rdd_2.toDF(["compound", "gene_count"])
 
-sorted_joined_rdd = joined_rdd.sortBy(lambda x: x[1][0], ascending=False)
-sorted_joined_rdd.toDF().show(3)
+joined_df = gene_df.join(disease_df, gene_df.compound == disease_df.compound).select(
+    gene_df.compound, "gene_count", "disease_count"
+)
+sorted_joined_df = joined_df.sort('gene_count', ascending=False)
+sorted_joined_df.show(3)
 
-print("""
+print(
+    """
 Q2:
 Compute the number of diseases associated
 with 1, 2, 3, …, n drugs. Output results with the top
@@ -99,40 +112,46 @@ with 1, 2, 3, …, n drugs. Output results with the top
 E.g.
 1 drug -> 2 diseases
 2 drugs -> 1 diseases
-""")
+"""
+)
 """
 ```
-❯ grep ^Compound edges.tsv| grep Disease:: | sort -k1 | awk '{print $1}' | uniq -c | sort -n | awk '{print $1}' | uniq -c
+❯ grep ^Compound edges.tsv| grep Disease:: | \
+    sort -k1 | \
+    awk '{print $1}' | \
+    uniq -c | sort -n | awk '{print $1}' | uniq -c
 ```
 """
 disease_compounds = edges.filter(
-        edges.source.startswith('Compound') &
-        (
-                edges.target.startswith('Disease')
-        )
-
+    edges.source.startswith("Compound") & (edges.target.startswith("Disease"))
 )
 # disease_compounds.take(5)
 
-rdd_1 = disease_compounds.rdd.map(lambda x: (x[0],    1))
+rdd_1 = disease_compounds.rdd.map(lambda x: (x[0], 1))
 # rdd_1.take(5)
 
 rdd_2 = rdd_1.reduceByKey(lambda x, y: x + y)
 rdd_2.take(5)
 
-df_1 = rdd_2.toDF(["compound", "drug_count"]).\
-    groupBy('drug_count').count().\
-    withColumnRenamed("count", "disease_count")
+df_1 = (
+    rdd_2.toDF(["compound", "drug_count"])
+    .groupBy("drug_count")
+    .count()
+    .withColumnRenamed("count", "disease_count")
+)
 df_1.sort("count", ascending=False).show(3)
 
-print("""
-Q3: Get the name of drugs that have the top 5 number of genes. Output the results.
+print(
+    """
+Q3:
+Get the name of drugs that have the top 5 number of genes.  Output the results.
 ```
 MagicPill1 -> 2
 MagicPill2 -> 1
 MagicPill3 -> 0
 ```
-""")
+"""
+)
 """
 ```
 cat edges.tsv| grep ^Compound:: | grep Gene:: | awk '{print $1}' | sort | uniq -c | sort -nr | head -5 | while read n c
@@ -151,10 +170,10 @@ Digoxin 52
 ```
 """
 
-compound_nodes = nodes.filter(nodes.id.startswith('Compound'))
+compound_nodes = nodes.filter(nodes.id.startswith("Compound"))
 # compound_nodes.take(5)
 
-rdd_1 = gene_compounds.rdd.map(lambda x: (x[0],    1))
+rdd_1 = gene_compounds.rdd.map(lambda x: (x[0], 1))
 # rdd_1.take(5)
 
 rdd_2 = rdd_1.reduceByKey(lambda x, y: x + y)
