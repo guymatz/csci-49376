@@ -101,7 +101,7 @@ joined_df = gene_df.join(disease_df, gene_df.compound == disease_df.compound).se
     gene_df.compound, "gene_count", "disease_count"
 )
 sorted_joined_df = joined_df.sort('gene_count', ascending=False)
-sorted_joined_df.show(3)
+sorted_joined_df.show(5)
 
 print(
     """
@@ -139,7 +139,7 @@ df_1 = (
     .count()
     .withColumnRenamed("count", "disease_count")
 )
-df_1.sort("count", ascending=False).show(3)
+df_1.sort("count", ascending=False).show(5)
 
 print(
     """
