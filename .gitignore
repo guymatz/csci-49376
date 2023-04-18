@@ -1,3 +1,4 @@
+*.pdf
 # Data file extensions
 *tsv
 *gz
