@@ -18,22 +18,24 @@ in descending order
 * Join
 
 #### Approach
-Using a dataset of graph edges, two RDDs were created,
-one of compounds and associated diseases, and another of compounds and associated genes.
+Using a dataset of graph edges, two RDDs were created using filters, one of compounds and associated diseases, and another of compounds and associated genes.
+
+Both RDDs were mapped to (compound, 1) pairs, then
+reduced to get the total count of "Compounds per Disease" and
+"Compounds per Gene".  The two RDDs were then converted to 
+dataframes and joined on their keys (Compound)
 
 #### Pseudocode
 ```
 class Mapper
-    method Map(string t, integer r)
-        Emit(string t, pair (r, 1))
+    method Map(string t)
+        Emit(pair (t, 1))
 
 class Reducer
-    method Reduce(string t, paris [(s_1, c_1),(s_1, c_1)...])
-        sum <- 0
-        cnt <- 0
-        for all pair (s,c) \in pairs
-            sum <- sum + s
-            cnt <- sum + s
+    method Reduce(pairs [(s_1, c_1),(s_1, c_1)...])
+        for all pairs (s,c) \in pairs
+            if s_1 == s_2:
+                Emit(c_1 + c_2)
 ```
 ----
 ## Problem 2
@@ -53,25 +55,26 @@ E.g.
 
 * Filtering
 * Summarization
-* Join
 
 #### Approach
-Using a dataset of graph edges, two RDDs were created,
-one of compounds and associated diseases, and another of compounds and associated genes.
+A filter was applied to dataset of graph edges to create
+a RDD of compounds and associated diseases
+
+The RDD was then mapped to (compound, 1) pairs, and
+reduced to get the total count of "Compounds per Disease".
+The data was then "grouped by" the count and sorted.
 
 #### Pseudocode
 ```
 class Mapper
-    method Map(string t, integer r)
-        Emit(string t, pair (r, 1))
+    method Map(string t)
+        Emit(pair (t, 1))
 
 class Reducer
-    method Reduce(string t, paris [(s_1, c_1),(s_1, c_1)...])
-        sum <- 0
-        cnt <- 0
-        for all pair (s,c) \in pairs
-            sum <- sum + s
-            cnt <- sum + s
+    method Reduce(pairs [(s_1, c_1),(s_1, c_1)...])
+        for all pairs (s,c) \in pairs
+            if s_1 == s_2:
+                Emit(c_1 + c_2)
 ```
 ----
 ## Problem 3
@@ -91,22 +94,26 @@ MagicPill3 -> 0
 * Join
 
 #### Approach
-Using a dataset of graph edges, two RDDs were created,
-one of compounds and associated diseases, and another of compounds and associated genes.
+A filter was applied to dataset of graph nodes to create
+a RDD of Compound Names / ID.
+
+A previously created RDD of Compounds/Genes was mapped to (compound, 1) pairs, then reduced to create an RDD of Compounds by 
+Gene Count.
+
+The Compound/Gene Count RDD was then joined to the RDD of
+Compounds Names / IDs.
 
 #### Pseudocode
 ```
 class Mapper
-    method Map(string t, integer r)
-        Emit(string t, pair (r, 1))
+    method Map(string t)
+        Emit(pair (t, 1))
 
 class Reducer
-    method Reduce(string t, paris [(s_1, c_1),(s_1, c_1)...])
-        sum <- 0
-        cnt <- 0
-        for all pair (s,c) \in pairs
-            sum <- sum + s
-            cnt <- sum + s
+    method Reduce(pairs [(s_1, c_1),(s_1, c_1)...])
+        for all pairs (s,c) \in pairs
+            if s_1 == s_2:
+                Emit(c_1 + c_2)
 ```
 
 
