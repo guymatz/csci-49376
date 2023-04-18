@@ -1,6 +1,8 @@
 # CSCI 49376 - BIG DATA
 
-# Project 2
+## Project 2
+## Guy Matz
+
 ---------------
 
 ## Design of MapReduce Algorithms
@@ -30,14 +32,16 @@ dataframes and joined on their keys (Compound)
 class Mapper
     method Map(string t)
         Emit(pair (t, 1))
-
+```
+```
 class Reducer
     method Reduce(pairs [(s_1, c_1),(s_1, c_1)...])
-        for all pairs (s,c) \in pairs
+        for all pairs \(s,c\) \in pairs
             if s_1 == s_2:
                 Emit(c_1 + c_2)
 ```
 ----
+
 ## Problem 2
 
 Compute the number of diseases associated
@@ -69,14 +73,16 @@ The data was then "grouped by" the count and sorted.
 class Mapper
     method Map(string t)
         Emit(pair (t, 1))
-
+```
+```
 class Reducer
     method Reduce(pairs [(s_1, c_1),(s_1, c_1)...])
-        for all pairs (s,c) \in pairs
+        for all pairs \(s,c\) \in pairs
             if s_1 == s_2:
                 Emit(c_1 + c_2)
 ```
 ----
+
 ## Problem 3
 
 Get the name of drugs that have the top 5 number of genes.  Output the results.
@@ -108,10 +114,11 @@ Compounds Names / IDs.
 class Mapper
     method Map(string t)
         Emit(pair (t, 1))
-
+```
+```
 class Reducer
     method Reduce(pairs [(s_1, c_1),(s_1, c_1)...])
-        for all pairs (s,c) \in pairs
+        for all pairs \(s,c\) \in pairs
             if s_1 == s_2:
                 Emit(c_1 + c_2)
 ```
