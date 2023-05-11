@@ -39,6 +39,13 @@ print("label prediction: \n", labels_predictions.first())
 testErr = labels_predictions.filter(
     lambda lp: lp[0] != lp[1]).count() / float(test_data.count())
 print('Test Error = ' + str(testErr))
+
+# FFalse positives, where label is 0 and prediction is 1
+fp_num = labels_predictions.filter( lambda lp: lp[0] == 0 and lp[1] == 1).count()
+# False negatives, where  and label is 1 prediction is 0
+fn_num = labels_predictions.filter( lambda lp: lp[0] == 1 and lp[1] == 0).count()
+
+
 #print('Learned classification forest model:')
 #print(model.toDebugString())
 #
