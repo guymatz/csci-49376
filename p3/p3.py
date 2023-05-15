@@ -40,8 +40,11 @@ testErr = labels_predictions.filter(
     lambda lp: lp[0] != lp[1]).count() / float(test_data.count())
 print('Test Error = ' + str(testErr))
 
+### CONFUSION MATRIX
 # True positives, where label is 1 and prediction is 1
 tp_num = labels_predictions.filter( lambda lp: lp[0] == 1 and lp[1] == 1).count()
+# True negatives, where label is 0 and prediction is 0
+tn_num = labels_predictions.filter( lambda lp: lp[0] == 0 and lp[1] == 0).count()
 # FFalse positives, where label is 0 and prediction is 1
 fp_num = labels_predictions.filter( lambda lp: lp[0] == 0 and lp[1] == 1).count()
 # False negatives, where  and label is 1 prediction is 0
@@ -49,16 +52,20 @@ fn_num = labels_predictions.filter( lambda lp: lp[0] == 1 and lp[1] == 0).count(
 
 precision = tp_num / (tp_num + fp_num)
 recall = tp_num / (tp_num + fn_num)
+
 f1 = 2 * (precision * recall) / (precision + recall)
 
+# true-positive rate
+# DO I NEED sensitivity?
+tpr =  tp_num / (tp_num + fn_num)
+# false-positive rate
+fpr = fp_num / (fp_num + tn_num)
 print(f"precision: {precision}")
 print(f"recall: {recall}")
 print(f"F1 score: {f1}")
 print(f"ROC curve")
 
-#print('Learned classification forest model:')
-#print(model.toDebugString())
-#
-## Save and load model
-#model.save(sc, "myRandomForestClassificationModel")
-#sameModel = RandomForestModel.load(sc, "myRandomForestClassificationModel")
+# See
+# https://stackoverflow.com/questions/52847408/pyspark-extract-roc-curve
+# https://shihaojran.com/distributed-machine-learning-using-pyspark/
+# https://www.kaggle.com/code/palmer0/binary-classification-with-pyspark-and-mllib
