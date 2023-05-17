@@ -2,8 +2,10 @@
 
 from pyspark.sql import SparkSession
 from pyspark.mllib.tree import RandomForest, RandomForestModel
+from pyspark.mllib.tree import GradientBoostedTrees, GradientBoostedTreesModel
 from pyspark.mllib.util import MLUtils
 from pyspark.mllib.regression import LabeledPoint
+from pyspark.mllib.evaluation import BinaryClassificationMetrics
 from pyspark.sql.functions import when
 import sys
 
@@ -22,6 +24,11 @@ labeled_data = MLUtils.loadLibSVMFile(spark.sparkContext,
 print("--- labeled data point: \n", labeled_data.take(1))
 (training_data, test_data) = labeled_data.randomSplit([0.7, 0.3])
 
+test_data_labels = test_data.map(lambda lp: lp.label)
+print("test label: \n", test_data_labels.first())
+
+### RANDOM FOREST
+
 # Train a RandomForest model.
 model = RandomForest.trainClassifier(training_data,
             numClasses=2, categoricalFeaturesInfo={},
@@ -31,14 +38,14 @@ model = RandomForest.trainClassifier(training_data,
 # Evaluate model on test instances and compute test error
 predictions = model.predict(test_data.map(lambda x: x.features))
 print("prediction:\n", predictions.take(1))
-test_data_labels = test_data.map(lambda lp: lp.label)
-print("test label: \n", test_data_labels.first())
 labels_predictions = test_data_labels.zip(predictions)
 #print(labels_predictions.take(3)) 
 print("label prediction: \n", labels_predictions.first()) 
 testErr = labels_predictions.filter(
     lambda lp: lp[0] != lp[1]).count() / float(test_data.count())
 print('Test Error = ' + str(testErr))
+
+metrics = BinaryClassificationMetrics(labels_predictions)
 
 ### CONFUSION MATRIX
 # True positives, where label is 1 and prediction is 1
@@ -63,6 +70,59 @@ fpr = fp_num / (fp_num + tn_num)
 print(f"precision: {precision}")
 print(f"recall: {recall}")
 print(f"F1 score: {f1}")
+print(f"Area Under ROC: {metrics.areaUnderROC}")
+print(f"ROC curve")
+
+# See
+# https://stackoverflow.com/questions/52847408/pyspark-extract-roc-curve
+# https://shihaojran.com/distributed-machine-learning-using-pyspark/
+# https://www.kaggle.com/code/palmer0/binary-classification-with-pyspark-and-mllib
+
+
+### Gradient Boosted
+
+# Train a GB model.
+print(f"Gradient-Boosted")
+gb_model = GradientBoostedTrees.trainClassifier(training_data,
+            categoricalFeaturesInfo={},
+            numIterations=3)
+
+# Evaluate model on test instances and compute test error
+gb_predictions = gb_model.predict(test_data.map(lambda x: x.features))
+print("GB prediction:\n", gb_predictions.take(1))
+gb_labels_predictions = test_data_labels.zip(gb_predictions)
+#print(labels_predictions.take(3)) 
+print("label prediction: \n", gb_labels_predictions.first()) 
+testErr = gb_labels_predictions.filter(
+    lambda lp: lp[0] != lp[1]).count() / float(test_data.count())
+print('Test Error = ' + str(testErr))
+
+metrics = BinaryClassificationMetrics(labels_predictions)
+
+### CONFUSION MATRIX
+# True positives, where label is 1 and prediction is 1
+tp_num = gb_labels_predictions.filter( lambda lp: lp[0] == 1 and lp[1] == 1).count()
+# True negatives, where label is 0 and prediction is 0
+tn_num = gb_labels_predictions.filter( lambda lp: lp[0] == 0 and lp[1] == 0).count()
+# FFalse positives, where label is 0 and prediction is 1
+fp_num = gb_labels_predictions.filter( lambda lp: lp[0] == 0 and lp[1] == 1).count()
+# False negatives, where  and label is 1 prediction is 0
+fn_num = gb_labels_predictions.filter( lambda lp: lp[0] == 1 and lp[1] == 0).count()
+
+precision = tp_num / (tp_num + fp_num)
+recall = tp_num / (tp_num + fn_num)
+
+f1 = 2 * (precision * recall) / (precision + recall)
+
+# true-positive rate
+# DO I NEED sensitivity?
+tpr =  tp_num / (tp_num + fn_num)
+# false-positive rate
+fpr = fp_num / (fp_num + tn_num)
+print(f"precision: {precision}")
+print(f"recall: {recall}")
+print(f"F1 score: {f1}")
+print(f"Area Under ROC: {metrics.areaUnderROC}")
 print(f"ROC curve")
 
 # See
