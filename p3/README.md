@@ -35,3 +35,7 @@ compare their performances
 . Put the data in usable format
   . One-hot encoded the data
   . saved it in svlib? format (with label & features)
+
+Logistic Regression: https://spark.apache.org/docs/latest/mllib-linear-methods.html#logistic-regression
+Gradient Boosted: https://spark.apache.org/docs/latest/mllib-ensembles.html#gradient-boosted-trees-gbts
+Random Forest: https://spark.apache.org/docs/latest/mllib-ensembles.html#random-forests
