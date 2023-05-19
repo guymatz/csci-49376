@@ -1,14 +1,13 @@
 #!/usr/bin/env python
 from pyspark.sql import SparkSession
-from pyspark.mllib import numpy as np
 from pyspark.mllib.tree import RandomForest
 from pyspark.mllib.tree import GradientBoostedTrees
-from pyspark.mllib.tree import DecisionTree
+from pyspark.mllib.classiication import LogisticRegressionWithLBGFS
+from pyspark.mllib.evaluation import BinaryClassificationMetrics
 
 from pyspark.mllib.util import MLUtils
-from pyspark.mllib.regression import LabeledPoint
-from pyspark.mllib.evaluation import BinaryClassificationMetrics
-from pyspark.sql.functions import when
+# Needed for converting csv to libsvm (no longer needed)
+#from pyspark.mllib.regression import LabeledPoint
 import sys
 
 DATA_FILE="data-test.csv"
@@ -246,37 +245,37 @@ print(f"F1 score: {f1}")
 print(f"Area Under ROC: {gb_metrics.areaUnderROC}")
 print()
 
-### DECISION TREE
-dt_grid = {"gini":{}, "entropy":{}}
-for impurity in dt_grid.keys():
-  print(f"Running DT with Impurity: {impurity}")
-  for max_depth in range(1,6):
-    print(f"Running DT with maxDepth: {max_depth}")
-    dt_model = DecisionTree.trainClassifier(training_data,
-                numClasses=2, categoricalFeaturesInfo={},
-                maxDepth=max_depth, impurity=impurity)
+### Logistoc Regression with LBGFS
+lr_grid = {"l1":{}, "l2":{}}
+for reg_type in lr_grid.keys():
+  print(f"Running LR with regType: {reg_type}")
+  for iterations in range(50,151,50):
+    print(f"Running LR with iterations: {iterations}")
+    lr_model = LogisticRegressionWithLBFGS.train(training_data,
+                regType=reg_type, iterations=iterations)
 
     # Evaluate model on test instances and compute test error
-    dt_predictions = dt_model.predict(validation_data.map(lambda x: x.features))
+    lr_predictions_int = lr_model.predict(validation_data.map(lambda x: x.features))
+    lr_predictions = lr_predictions_int.map(lambda x: float(x))
     #print("prediction:\n", predictions.take(1))
-    dt_labels_predictions = validation_data_labels.zip(dt_predictions)
+    lr_labels_predictions = validation_data_labels.zip(lr_predictions)
     #print(labels_predictions.take(3)) 
     #print("label prediction: \n", labels_predictions.first()) 
     #testErr = labels_predictions.filter(
     #    lambda lp: lp[0] != lp[1]).count() / float(test_data.count())
     #print('Test Error = ' + str(testErr))
 
-    #dt_metrics = BinaryClassificationMetrics(dt_labels_predictions)
+    #lr_metrics = BinaryClassificationMetrics(lr_labels_predictions)
 
     ### CONFUSION MATRIX
     # True positives, where label is 1 and prediction is 1
-    tp_num = dt_labels_predictions.filter( lambda lp: lp[0] == 1 and lp[1] == 1).count()
+    tp_num = lr_labels_predictions.filter( lambda lp: lp[0] == 1 and lp[1] == 1).count()
     # True negatives, where label is 0 and prediction is 0
-    tn_num = dt_labels_predictions.filter( lambda lp: lp[0] == 0 and lp[1] == 0).count()
+    tn_num = lr_labels_predictions.filter( lambda lp: lp[0] == 0 and lp[1] == 0).count()
     # FFalse positives, where label is 0 and prediction is 1
-    fp_num = dt_labels_predictions.filter( lambda lp: lp[0] == 0 and lp[1] == 1).count()
+    fp_num = lr_labels_predictions.filter( lambda lp: lp[0] == 0 and lp[1] == 1).count()
     # False negatives, where  and label is 1 prediction is 0
-    fn_num = dt_labels_predictions.filter( lambda lp: lp[0] == 1 and lp[1] == 0).count()
+    fn_num = lr_labels_predictions.filter( lambda lp: lp[0] == 1 and lp[1] == 0).count()
 
     precision = tp_num / (tp_num + fp_num)
     recall = tp_num / (tp_num + fn_num)
@@ -289,33 +288,33 @@ for impurity in dt_grid.keys():
     # false-positive rate
     fpr = fp_num / (fp_num + tn_num)
 
-    dt_grid[impurity][(impurity, max_depth)] = f1
+    lr_grid[reg_type][(reg_type, iterations)] = f1
 
 # Best hyper-parameters
-print(f"DECISION TREE:")
-best_hp = find_best_params(dt_grid)
-print(f"Best hyper-parameters for DT(impurity, maxDepth) are {best_hp}")
-dt_model = DecisionTree.trainClassifier(training_data,
-                maxDepth=best_hp[1], impurity=best_hp[0])
+print(f"Logistoc Regression with LBGFS:")
+best_hp = find_best_params(lr_grid)
+print(f"Best hyper-parameters for LR(regType, iterations) are {best_hp}")
+lr_model = LogisticRegressionWithLBFGS.train(training_data,
+                regType=best_hp[0], iterations=best_hp[1])
 
 # Evaluate model on test instances and compute test error
-dt_predictions = dt_model.predict(test_data.map(lambda x: x.features))
-#print("GB prediction:\n", dt_predictions.take(1))
-dt_labels_predictions = test_data_labels.zip(dt_predictions)
+lr_predictions = lr_model.predict(test_data.map(lambda x: x.features))
+#print("LR prediction:\n", lr_predictions.take(1))
+lr_labels_predictions = test_data_labels.zip(lr_predictions)
 #print(labels_predictions.take(3)) 
-#print("label prediction: \n", dt_labels_predictions.first()) 
+#print("label prediction: \n", lr_labels_predictions.first()) 
 
-dt_metrics = BinaryClassificationMetrics(dt_labels_predictions)
+lr_metrics = BinaryClassificationMetrics(lr_labels_predictions)
 
 ### CONFUSION MATRIX
 # True positives, where label is 1 and prediction is 1
-tp_num = dt_labels_predictions.filter( lambda lp: lp[0] == 1 and lp[1] == 1).count()
+tp_num = lr_labels_predictions.filter( lambda lp: lp[0] == 1 and lp[1] == 1).count()
 # True negatives, where label is 0 and prediction is 0
-tn_num = dt_labels_predictions.filter( lambda lp: lp[0] == 0 and lp[1] == 0).count()
+tn_num = lr_labels_predictions.filter( lambda lp: lp[0] == 0 and lp[1] == 0).count()
 # FFalse positives, where label is 0 and prediction is 1
-fp_num = dt_labels_predictions.filter( lambda lp: lp[0] == 0 and lp[1] == 1).count()
+fp_num = lr_labels_predictions.filter( lambda lp: lp[0] == 0 and lp[1] == 1).count()
 # False negatives, where  and label is 1 prediction is 0
-fn_num = dt_labels_predictions.filter( lambda lp: lp[0] == 1 and lp[1] == 0).count()
+fn_num = lr_labels_predictions.filter( lambda lp: lp[0] == 1 and lp[1] == 0).count()
 
 precision = tp_num / (tp_num + fp_num)
 recall = tp_num / (tp_num + fn_num)
@@ -331,5 +330,5 @@ fpr = fp_num / (fp_num + tn_num)
 print(f"precision: {precision}")
 print(f"recall: {recall}")
 print(f"F1 score: {f1}")
-print(f"Area Under ROC: {dt_metrics.areaUnderROC}")
+print(f"Area Under ROC: {lr_metrics.areaUnderROC}")
 print()
