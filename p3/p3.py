@@ -2,9 +2,10 @@
 from pyspark.sql import SparkSession
 from pyspark.mllib.tree import RandomForest
 from pyspark.mllib.tree import GradientBoostedTrees
-from pyspark.mllib.classiication import LogisticRegressionWithLBGFS
-from pyspark.mllib.evaluation import BinaryClassificationMetrics
+from pyspark.mllib.classification import LogisticRegressionWithLBFGS
 
+
+from pyspark.mllib.evaluation import BinaryClassificationMetrics
 from pyspark.mllib.util import MLUtils
 # Needed for converting csv to libsvm (no longer needed)
 #from pyspark.mllib.regression import LabeledPoint
@@ -298,7 +299,8 @@ lr_model = LogisticRegressionWithLBFGS.train(training_data,
                 regType=best_hp[0], iterations=best_hp[1])
 
 # Evaluate model on test instances and compute test error
-lr_predictions = lr_model.predict(test_data.map(lambda x: x.features))
+lr_predictions_int = lr_model.predict(test_data.map(lambda x: x.features))
+lr_predictions = lr_predictions_int.map(lambda x: float(x))
 #print("LR prediction:\n", lr_predictions.take(1))
 lr_labels_predictions = test_data_labels.zip(lr_predictions)
 #print(labels_predictions.take(3)) 
