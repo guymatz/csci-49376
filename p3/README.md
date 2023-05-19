@@ -29,3 +29,9 @@ compare their performances
 * Comparison of two algorithms.
     * Discussion
 * Limitations and future improvement.
+
+
+# STEPS
+. Put the data in usable format
+  . One-hot encoded the data
+  . saved it in svlib? format (with label & features)

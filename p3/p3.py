@@ -1,8 +1,10 @@
 #!/usr/bin/env python
-
 from pyspark.sql import SparkSession
-from pyspark.mllib.tree import RandomForest, RandomForestModel
-from pyspark.mllib.tree import GradientBoostedTrees, GradientBoostedTreesModel
+from pyspark.mllib import numpy as np
+from pyspark.mllib.tree import RandomForest
+from pyspark.mllib.tree import GradientBoostedTrees
+from pyspark.mllib.tree import DecisionTree
+
 from pyspark.mllib.util import MLUtils
 from pyspark.mllib.regression import LabeledPoint
 from pyspark.mllib.evaluation import BinaryClassificationMetrics
@@ -64,7 +66,7 @@ for feature_subset_strategy in rf_grid.keys():
     #    lambda lp: lp[0] != lp[1]).count() / float(test_data.count())
     #print('Test Error = ' + str(testErr))
 
-    rf_metrics = BinaryClassificationMetrics(rf_labels_predictions)
+    #rf_metrics = BinaryClassificationMetrics(rf_labels_predictions)
 
     ### CONFUSION MATRIX
     # True positives, where label is 1 and prediction is 1
@@ -105,7 +107,7 @@ rf_labels_predictions = test_data_labels.zip(rf_predictions)
 #print(labels_predictions.take(3)) 
 #print("label prediction: \n", rf_labels_predictions.first()) 
 
-metrics = BinaryClassificationMetrics(rf_labels_predictions)
+rf_metrics = BinaryClassificationMetrics(rf_labels_predictions)
 
 ### CONFUSION MATRIX
 # True positives, where label is 1 and prediction is 1
@@ -131,7 +133,7 @@ fpr = fp_num / (fp_num + tn_num)
 print(f"precision: {precision}")
 print(f"recall: {recall}")
 print(f"F1 score: {f1}")
-print(f"Area Under ROC: {metrics.areaUnderROC}")
+print(f"Area Under ROC: {rf_metrics.areaUnderROC}")
 print()
 
 # See
@@ -164,7 +166,7 @@ for loss_fn in gb_grid.keys():
     #    lambda lp: lp[0] != lp[1]).count() / float(test_data.count())
     #print('Test Error = ' + str(testErr))
 
-    metrics = BinaryClassificationMetrics(gb_labels_predictions)
+    #metrics = BinaryClassificationMetrics(gb_labels_predictions)
 
     ### CONFUSION MATRIX
     # True positives, where label is 1 and prediction is 1
@@ -214,7 +216,7 @@ gb_labels_predictions = test_data_labels.zip(gb_predictions)
 #print(labels_predictions.take(3)) 
 #print("label prediction: \n", gb_labels_predictions.first()) 
 
-metrics = BinaryClassificationMetrics(gb_labels_predictions)
+gb_metrics = BinaryClassificationMetrics(gb_labels_predictions)
 
 ### CONFUSION MATRIX
 # True positives, where label is 1 and prediction is 1
@@ -241,44 +243,40 @@ print(f"GRADIENT BOOSTED:")
 print(f"precision: {precision}")
 print(f"recall: {recall}")
 print(f"F1 score: {f1}")
-print(f"Area Under ROC: {metrics.areaUnderROC}")
+print(f"Area Under ROC: {gb_metrics.areaUnderROC}")
 print()
 
-### LINEAR REGRESSION
+### DECISION TREE
+dt_grid = {"gini":{}, "entropy":{}}
+for impurity in dt_grid.keys():
+  print(f"Running DT with Impurity: {impurity}")
+  for max_depth in range(1,6):
+    print(f"Running DT with maxDepth: {max_depth}")
+    dt_model = DecisionTree.trainClassifier(training_data,
+                numClasses=2, categoricalFeaturesInfo={},
+                maxDepth=max_depth, impurity=impurity)
 
-# Train a GB model.
-#gb_loss_functions = {"logLoss":[], "leastSquaresError":[], "leastAbsoluteError":[]}
-gb_grid = {"logLoss":{}, "leastSquaresError":{}, "leastAbsoluteError":{}}
-for loss_fn in gb_grid.keys():
-  # print(f"Running GB with Loss Function: {loss_fn}")
-  for num_iterations in range(1,30,10):
-    # print(f"Running GB with Num Iterations: {num_iterations}")
-    gb_model = GradientBoostedTrees.trainClassifier(training_data,
-                categoricalFeaturesInfo={},
-                loss=loss_fn,
-                numIterations=num_iterations)
-
-    # Evaluate model on validation instances and compute validation error
-    gb_predictions = gb_model.predict(validation_data.map(lambda x: x.features))
-    #print("GB prediction:\n", gb_predictions.take(1))
-    gb_labels_predictions = validation_data_labels.zip(gb_predictions)
+    # Evaluate model on test instances and compute test error
+    dt_predictions = dt_model.predict(validation_data.map(lambda x: x.features))
+    #print("prediction:\n", predictions.take(1))
+    dt_labels_predictions = validation_data_labels.zip(dt_predictions)
     #print(labels_predictions.take(3)) 
-    #print("label prediction: \n", gb_labels_predictions.first()) 
-    #testErr = gb_labels_predictions.filter(
+    #print("label prediction: \n", labels_predictions.first()) 
+    #testErr = labels_predictions.filter(
     #    lambda lp: lp[0] != lp[1]).count() / float(test_data.count())
     #print('Test Error = ' + str(testErr))
 
-    metrics = BinaryClassificationMetrics(gb_labels_predictions)
+    #dt_metrics = BinaryClassificationMetrics(dt_labels_predictions)
 
     ### CONFUSION MATRIX
     # True positives, where label is 1 and prediction is 1
-    tp_num = gb_labels_predictions.filter( lambda lp: lp[0] == 1 and lp[1] == 1).count()
+    tp_num = dt_labels_predictions.filter( lambda lp: lp[0] == 1 and lp[1] == 1).count()
     # True negatives, where label is 0 and prediction is 0
-    tn_num = gb_labels_predictions.filter( lambda lp: lp[0] == 0 and lp[1] == 0).count()
+    tn_num = dt_labels_predictions.filter( lambda lp: lp[0] == 0 and lp[1] == 0).count()
     # FFalse positives, where label is 0 and prediction is 1
-    fp_num = gb_labels_predictions.filter( lambda lp: lp[0] == 0 and lp[1] == 1).count()
+    fp_num = dt_labels_predictions.filter( lambda lp: lp[0] == 0 and lp[1] == 1).count()
     # False negatives, where  and label is 1 prediction is 0
-    fn_num = gb_labels_predictions.filter( lambda lp: lp[0] == 1 and lp[1] == 0).count()
+    fn_num = dt_labels_predictions.filter( lambda lp: lp[0] == 1 and lp[1] == 0).count()
 
     precision = tp_num / (tp_num + fp_num)
     recall = tp_num / (tp_num + fn_num)
@@ -291,44 +289,33 @@ for loss_fn in gb_grid.keys():
     # false-positive rate
     fpr = fp_num / (fp_num + tn_num)
 
-#    print(f"GRADIENT BOOSTED:")
-#    print(f"precision: {precision}")
-#    print(f"recall: {recall}")
-#    print(f"F1 score: {f1}")
-#    print(f"Area Under ROC: {metrics.areaUnderROC}")
-
-    gb_grid[loss_fn][(loss_fn, num_iterations)] = f1
-    # See
-    # https://stackoverflow.com/questions/52847408/pyspark-extract-roc-curve
-    # https://shihaojran.com/distributed-machine-learning-using-pyspark/
-    # https://www.kaggle.com/code/palmer0/binary-classification-with-pyspark-and-mllib
+    dt_grid[impurity][(impurity, max_depth)] = f1
 
 # Best hyper-parameters
-best_hp = find_best_params(gb_grid)
-print(f"Best hyper-parameters for GB(loss, numIterations) are {best_hp}")
-gb_model = GradientBoostedTrees.trainClassifier(training_data,
-            categoricalFeaturesInfo={},
-            loss=best_hp[0],
-            numIterations=best_hp[1])
+print(f"DECISION TREE:")
+best_hp = find_best_params(dt_grid)
+print(f"Best hyper-parameters for DT(impurity, maxDepth) are {best_hp}")
+dt_model = DecisionTree.trainClassifier(training_data,
+                maxDepth=best_hp[1], impurity=best_hp[0])
 
 # Evaluate model on test instances and compute test error
-gb_predictions = gb_model.predict(test_data.map(lambda x: x.features))
-#print("GB prediction:\n", gb_predictions.take(1))
-gb_labels_predictions = test_data_labels.zip(gb_predictions)
+dt_predictions = dt_model.predict(test_data.map(lambda x: x.features))
+#print("GB prediction:\n", dt_predictions.take(1))
+dt_labels_predictions = test_data_labels.zip(dt_predictions)
 #print(labels_predictions.take(3)) 
-#print("label prediction: \n", gb_labels_predictions.first()) 
+#print("label prediction: \n", dt_labels_predictions.first()) 
 
-metrics = BinaryClassificationMetrics(gb_labels_predictions)
+dt_metrics = BinaryClassificationMetrics(dt_labels_predictions)
 
 ### CONFUSION MATRIX
 # True positives, where label is 1 and prediction is 1
-tp_num = gb_labels_predictions.filter( lambda lp: lp[0] == 1 and lp[1] == 1).count()
+tp_num = dt_labels_predictions.filter( lambda lp: lp[0] == 1 and lp[1] == 1).count()
 # True negatives, where label is 0 and prediction is 0
-tn_num = gb_labels_predictions.filter( lambda lp: lp[0] == 0 and lp[1] == 0).count()
+tn_num = dt_labels_predictions.filter( lambda lp: lp[0] == 0 and lp[1] == 0).count()
 # FFalse positives, where label is 0 and prediction is 1
-fp_num = gb_labels_predictions.filter( lambda lp: lp[0] == 0 and lp[1] == 1).count()
+fp_num = dt_labels_predictions.filter( lambda lp: lp[0] == 0 and lp[1] == 1).count()
 # False negatives, where  and label is 1 prediction is 0
-fn_num = gb_labels_predictions.filter( lambda lp: lp[0] == 1 and lp[1] == 0).count()
+fn_num = dt_labels_predictions.filter( lambda lp: lp[0] == 1 and lp[1] == 0).count()
 
 precision = tp_num / (tp_num + fp_num)
 recall = tp_num / (tp_num + fn_num)
@@ -341,10 +328,8 @@ tpr =  tp_num / (tp_num + fn_num)
 # false-positive rate
 fpr = fp_num / (fp_num + tn_num)
 
-print(f"GRADIENT BOOSTED:")
 print(f"precision: {precision}")
 print(f"recall: {recall}")
 print(f"F1 score: {f1}")
-print(f"Area Under ROC: {metrics.areaUnderROC}")
+print(f"Area Under ROC: {dt_metrics.areaUnderROC}")
 print()
-
