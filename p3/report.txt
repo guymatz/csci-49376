@@ -1,0 +1,4 @@
+we have labeled data, amd we want to build a model that is able to 
+classify new data as one of two groups.  For these reasons we will
+use Classification models.
+
