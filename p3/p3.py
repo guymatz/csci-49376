@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from pyspark.sql import SparkSession
+from pyspark import SparkContext
 from pyspark.mllib.tree import RandomForest
 from pyspark.mllib.tree import GradientBoostedTrees
 from pyspark.mllib.classification import LogisticRegressionWithLBFGS
@@ -16,12 +16,11 @@ DATA_FILE="data.csv"
 DATA_FILE="labeled_data.svm"
 
 # Create a Spark Session
-if 'spark' not in dir():
-    spark = SparkSession.builder.master("local[*]").getOrCreate()
+if 'sc' not in dir():
+    sc = SparkContext("local","proj_3")
 
 # Load and parse the data file into an RDD
-labeled_data = MLUtils.loadLibSVMFile(spark.sparkContext,
-                                      path='labeled_data.svm')
+labeled_data = MLUtils.loadLibSVMFile(sc, path='labeled_data.svm')
 # Split the data into training and test sets (30% held out for testing)
 #print("--- labeled data point: \n", labeled_data.take(1))
 (training_data, validation_data, test_data) = labeled_data.randomSplit([0.6, 0.2, 0.2])
