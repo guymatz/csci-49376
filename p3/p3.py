@@ -148,7 +148,7 @@ print()
 gb_grid = {"logLoss":{}, "leastSquaresError":{}, "leastAbsoluteError":{}}
 for loss_fn in gb_grid.keys():
   # print(f"Running GB with Loss Function: {loss_fn}")
-  for num_iterations in range(1,30,10):
+  for num_iterations in range(50,151,50):
     # print(f"Running GB with Num Iterations: {num_iterations}")
     gb_model = GradientBoostedTrees.trainClassifier(training_data,
                 categoricalFeaturesInfo={},
@@ -201,8 +201,8 @@ for loss_fn in gb_grid.keys():
     # https://www.kaggle.com/code/palmer0/binary-classification-with-pyspark-and-mllib
 
 # Best hyper-parameters
-print(f"Best hyper-parameters for GB(loss, numIterations) are {best_hp}")
 best_hp = find_best_params(gb_grid)
+print(f"Best hyper-parameters for GB(loss, numIterations) are {best_hp}")
 gb_model = GradientBoostedTrees.trainClassifier(training_data,
             categoricalFeaturesInfo={},
             loss=best_hp[0],
@@ -245,7 +245,7 @@ print(f"F1 score: {f1}")
 print(f"Area Under ROC: {gb_metrics.areaUnderROC}")
 print()
 
-### Logistoc Regression with LBGFS
+### Logistic Regression with LBGFS
 lr_grid = {"l1":{}, "l2":{}}
 for reg_type in lr_grid.keys():
   print(f"Running LR with regType: {reg_type}")
