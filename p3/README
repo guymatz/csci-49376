@@ -1,5 +1,9 @@
 # Project 3
 
+## To run:
+1. Install pyspark
+1. run pyspark in the usual way, e.g. `python p3.py`
+
 ## Description
 
 * Cancer diagnosis using machine learning
