@@ -40,20 +40,23 @@ def find_best_params(grid):
       #print(f"Comparing {param_2} {grid[param_1][param_2]} {max_f1}")
       if grid[param_1][param_2] > max_f1:
         max_f1 = grid[param_1][param_2]
-        best_params = param_2
+        best_params = (param_1, param_2)
   return best_params 
 
 ### RANDOM FOREST
 # Train a RandomForest model.
-rf_grid = {"all":{}, "sqrt":{}, "log2":{}, "onethird":{}}
-for feature_subset_strategy in rf_grid.keys():
-  #print(f"Running RF with Feature Subset Stategy: {feature_subset_strategy}")
-  for impurity in ['gini', 'entropy']:
-    #print(f"Running RF with Impurity: {impurity}")
+rf_grid = {}
+for n_trees in range(40, 61, 10):
+  rf_grid[n_trees] = {}
+  print(f"Running RF with num trees: {n_trees}")
+  for max_depth in range(3,6):
+    print(f"Running RF with max_depth: {max_depth}")
     rf_model = RandomForest.trainClassifier(training_data,
-                numClasses=2, categoricalFeaturesInfo={},
-                numTrees=3, featureSubsetStrategy=feature_subset_strategy,
-                impurity=impurity, maxDepth=4, maxBins=6)
+                numTrees=n_trees,
+                maxDepth=max_depth,
+                categoricalFeaturesInfo={},
+                numClasses=2
+                )
 
     # Evaluate model on test instances and compute test error
     rf_predictions = rf_model.predict(validation_data.map(lambda x: x.features))
@@ -88,17 +91,18 @@ for feature_subset_strategy in rf_grid.keys():
     # false-positive rate
     fpr = fp_num / (fp_num + tn_num)
 
-    rf_grid[feature_subset_strategy][(feature_subset_strategy, impurity)] = f1
+    rf_grid[n_trees][max_depth] = f1
 
 # Best hyper-parameters
 print(f"RANDOM FOREST:")
 best_hp = find_best_params(rf_grid)
-print(f"Best hyper-parameters for RF(featureSubsetStrategy, impurity) are {best_hp}")
+print(f"Best hyper-parameters for RF(n_trees, max_depth) are {best_hp}")
 rf_model = RandomForest.trainClassifier(training_data,
-             numClasses=2, categoricalFeaturesInfo={},
-             numTrees=3, featureSubsetStrategy=best_hp[0],
-             impurity=best_hp[1], maxDepth=4, maxBins=6)
-
+             numTrees=best_hp[0],
+             maxBins=best_hp[1],
+             categoricalFeaturesInfo={},
+             numClasses=2
+           )
 # Evaluate model on test instances and compute test error
 rf_predictions = rf_model.predict(test_data.map(lambda x: x.features))
 #print("GB prediction:\n", rf_predictions.take(1))
@@ -144,16 +148,16 @@ print()
 ### Gradient Boosted
 
 # Train a GB model.
-#gb_loss_functions = {"logLoss":[], "leastSquaresError":[], "leastAbsoluteError":[]}
-gb_grid = {"logLoss":{}, "leastSquaresError":{}, "leastAbsoluteError":{}}
-for loss_fn in gb_grid.keys():
-  # print(f"Running GB with Loss Function: {loss_fn}")
-  for num_iterations in range(50,151,50):
-    # print(f"Running GB with Num Iterations: {num_iterations}")
+gb_grid = {}
+for learning_rate in [0.09, 0.1, 0.11]:
+  # print(f"Running GB with Learning Rate: {learning_rate}")
+  gb_grid[learning_rate] = {}
+  for max_depth in range(2,5):
+    # print(f"Running GB with Max Depth: {max_depth}")
     gb_model = GradientBoostedTrees.trainClassifier(training_data,
                 categoricalFeaturesInfo={},
-                loss=loss_fn,
-                numIterations=num_iterations)
+                learningRate=learning_rate,
+                maxDepth=max_depth)
 
     # Evaluate model on validation instances and compute validation error
     gb_predictions = gb_model.predict(validation_data.map(lambda x: x.features))
@@ -194,7 +198,7 @@ for loss_fn in gb_grid.keys():
 #    print(f"F1 score: {f1}")
 #    print(f"Area Under ROC: {metrics.areaUnderROC}")
 
-    gb_grid[loss_fn][(loss_fn, num_iterations)] = f1
+    gb_grid[learning_rate][max_depth] = f1
     # See
     # https://stackoverflow.com/questions/52847408/pyspark-extract-roc-curve
     # https://shihaojran.com/distributed-machine-learning-using-pyspark/
@@ -202,11 +206,11 @@ for loss_fn in gb_grid.keys():
 
 # Best hyper-parameters
 best_hp = find_best_params(gb_grid)
-print(f"Best hyper-parameters for GB(loss, numIterations) are {best_hp}")
+print(f"Best hyper-parameters for GB(learningRate, maxDepth) are {best_hp}")
 gb_model = GradientBoostedTrees.trainClassifier(training_data,
-            categoricalFeaturesInfo={},
-            loss=best_hp[0],
-            numIterations=best_hp[1])
+                categoricalFeaturesInfo={},
+                learningRate=best_hp[0],
+                maxDepth=best_hp[1])
 
 # Evaluate model on test instances and compute test error
 gb_predictions = gb_model.predict(test_data.map(lambda x: x.features))
@@ -239,20 +243,21 @@ tpr =  tp_num / (tp_num + fn_num)
 fpr = fp_num / (fp_num + tn_num)
 
 print(f"GRADIENT BOOSTED:")
-print(f"precision: {precision}")
-print(f"recall: {recall}")
+print(f"Precision: {precision}")
+print(f"Recall: {recall}")
 print(f"F1 score: {f1}")
 print(f"Area Under ROC: {gb_metrics.areaUnderROC}")
 print()
 
 ### Logistic Regression with LBGFS
-lr_grid = {"l1":{}, "l2":{}}
-for reg_type in lr_grid.keys():
-  print(f"Running LR with regType: {reg_type}")
+lr_grid = {}
+for reg_param in [0.09,0.1,0.11]:
+  print(f"Running LR with regParam: {reg_param}")
+  lr_grid[reg_param] = {}
   for iterations in range(50,151,50):
     print(f"Running LR with iterations: {iterations}")
     lr_model = LogisticRegressionWithLBFGS.train(training_data,
-                regType=reg_type, iterations=iterations)
+                regParam=reg_param, iterations=iterations)
 
     # Evaluate model on test instances and compute test error
     lr_predictions_int = lr_model.predict(validation_data.map(lambda x: x.features))
@@ -288,14 +293,14 @@ for reg_type in lr_grid.keys():
     # false-positive rate
     fpr = fp_num / (fp_num + tn_num)
 
-    lr_grid[reg_type][(reg_type, iterations)] = f1
+    lr_grid[reg_param][iterations] = f1
 
 # Best hyper-parameters
 print(f"Logistoc Regression with LBGFS:")
 best_hp = find_best_params(lr_grid)
-print(f"Best hyper-parameters for LR(regType, iterations) are {best_hp}")
+print(f"Best hyper-parameters for LR(regParam, iterations) are {best_hp}")
 lr_model = LogisticRegressionWithLBFGS.train(training_data,
-                regType=best_hp[0], iterations=best_hp[1])
+                regParam=best_hp[0], iterations=best_hp[1])
 
 # Evaluate model on test instances and compute test error
 lr_predictions_int = lr_model.predict(test_data.map(lambda x: x.features))
