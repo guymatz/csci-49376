@@ -4,7 +4,7 @@
 
 # Professor Xie
 
-<h1><center>Project 3 - Machine Learning</center></h1>
+# Project 3 - Machine Learning
 
 ## Algorithms Chosen
 Because the supplied data was labeled, using a supervised model made sense.
